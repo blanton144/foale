@@ -1,0 +1,22 @@
+#!/usr/bin/env python
+
+import os
+import matplotlib.pyplot as plt
+import fitsio
+
+version = 'dr17-v0.1'
+summary_file = os.path.join(os.getenv('MNSA_DATA'), version,
+                            'mn-{v}-summary.fits')
+summary_file = summary_file.format(v=version)
+
+f = fitsio.read(summary_file)
+
+absmag_r = f['nsa_elpetro_absmag'][:, 4]
+Nmr = f['nsa_elpetro_absmag'][:, 1] - f['nsa_elpetro_absmag'][:, 4]
+
+plt.scatter(absmag_r, Nmr, s=4)
+plt.xlim([-23.5, -16.5])
+plt.ylim([0., 7.2])
+plt.ylabel('NUV-r')
+plt.xlabel('$M_r$')
+plt.show()

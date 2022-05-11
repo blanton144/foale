@@ -2,5 +2,6 @@ To set up on Utah:
 
 * Set $FOALE_DIR as an environmental variableto the root directory of this product
 * Add $FOALE_DIR/python to the python path (environmental variable $PYTHONPATH
+* Add $FOALE_DIR/bin to your system path (environmental variable $PATH)
 * Set $MNSA_DATA as an environmental variable:
   /uufs/chpc.utah.edu/common/home/sdss50/sdsswork/sandbox/mnsa

@@ -1,4 +1,5 @@
 import os
+import re
 import fitsio
 
 
@@ -56,18 +57,6 @@ class MNSA(object):
                                   'manga-{plateifu}-LOGCUBE.fits.gz')
         self.manga_file = manga_file.format(plateifu=self.plateifu)
 
-        self.manga_irg_png = self.manga_file.replace('.fits.gz',
-                                                     '.irg.png')
-        return
-
-    def read_cube(self):
-        """Read cube and store as attribute 'cube'"""
-        self.cube = fitsio.FITS(self.manga_file)
-        return
-
-    def read_maps(self):
-        """Read maps and store as attribute 'maps'"""
-
         dap_dir = os.path.join(os.getenv('MNSA_DATA'),
                                self.version, 'manga', 'analysis',
                                self.version, self.version, self.daptype,
@@ -80,7 +69,27 @@ class MNSA(object):
                                    self.daptype,
                                    str(self.plate), str(self.ifu))
         dap_file = os.path.join(dap_dir, 'manga-{p}-{t}-{d}.fits.gz')
-        dap_maps = dap_file.format(p=self.plateifu, d=self.daptype,
-                                   t='MAPS')
-        self.maps = fitsio.FITS(dap_maps)
+        self.dap_maps = dap_file.format(p=self.plateifu, d=self.daptype,
+                                        t='MAPS')
+
+        self.manga_irg_png = self.manga_file.replace('.fits.gz',
+                                                     '.irg.png')
+        return
+
+    def read_cube(self):
+        """Read cube and store as attribute 'cube'"""
+        self.cube = fitsio.FITS(self.manga_file)
+        return
+
+    def read_maps(self):
+        """Read maps and store as attribute 'maps'"""
+        self.maps = fitsio.FITS(self.dap_maps)
+
+        self.lineindx = dict()
+        hdr = self.maps['EMLINE_GFLUX'].read_header()
+        for k in hdr:
+            m = re.match('^C([0-9]*)$', k)
+            if(m is not None):
+                self.lineindx[hdr[k]] = int(m[1]) - 1
+
         return

@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+
+import matplotlib.pyplot as plt
+import foale.mnsa
+
+# Initialize the convenience object
+m = foale.mnsa.MNSA(plateifu='9498-12701')
+
+# Read in the cube's FITS file
+m.read_cube()
+wave = m.cube['WAVE'].read()
+flux = m.cube['FLUX'].read()
+
+# Show one of the spectra in a pixel
+spaxel_flux = flux[:, 24, 24]
+plt.plot(wave, spaxel_flux)
+plt.xlabel('Wavelength (Angstrom)')
+plt.ylabel('Flux ($10^{-17}$ erg/cm$^2$/s/A)')
+plt.show()
+
+# Read in the maps FITS file
+m.read_maps()
+
+# Read in the emission line measurements (Gaussian fit)
+# This is a big 3D array, with one 2D image per line.
+gflux = m.maps['EMLINE_GFLUX'].read()
+
+# We have to pick out the right line. The MNSA object
+# builds a little dictionary to help.
+halpha_indx = m.lineindx['Ha-6564']
+halpha = gflux[halpha_indx, :, :]
+plt.imshow(halpha, origin='lower', cmap='Greys')
+plt.title('H-alpha')
+plt.show()
