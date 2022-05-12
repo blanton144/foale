@@ -5,3 +5,28 @@ To set up on Utah:
 * Add $FOALE_DIR/bin to your system path (environmental variable $PATH)
 * Set $MNSA_DATA as an environmental variable:
   /uufs/chpc.utah.edu/common/home/sdss50/sdsswork/sandbox/mnsa
+
+There is example software here about how to read in the data.
+
+For example, at this point you should be able to run the 
+following on the Unix command line:
+
+  "show_summary" - which will bring up a plot of the colors and 
+                   absolute magnitudes of the galaxies; this 
+                   just demonstrates how to read the summary
+                   file we will use
+
+  "show_example" - this shows how to read the data for a data
+                   cube and set of maps
+
+These scripts live in $MNSA_DIR/bin, and you should use them as
+examples.
+
+The data that is read by default is a re-reduction of the MaNGA DR17
+data. The cubes have been made in a slightly different manner than 
+for the official results, which yields higher resolution and a simpler
+covariance matrix between pixels.
+
+Unfortunately, that means we can't easily use the very nice system 
+called "Marvin" for reading the data in python. But that's not going
+to hurt us too much.
