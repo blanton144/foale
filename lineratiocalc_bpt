@@ -1,0 +1,144 @@
+#!/usr/bin/env python
+
+import matplotlib.pyplot as plt
+import foale.mnsa
+import numpy as np
+from pydl.pydlutils import sdss
+
+# Initialize the convenience object; below are the plate IFUs of the 6 galaxies we are interested in from Belfiore 2016
+#7975-9101, 7977-12704, 8439-12702, 7975-3704, 7443-12703, 8143-6101
+
+p_IFU = '8143-6101'
+
+m = foale.mnsa.MNSA(plateifu = '8143-6101')
+
+# Read in the cube's FITS file
+m.read_cube()
+wave = m.cube['WAVE'].read()
+flux = m.cube['FLUX'].read()
+
+# Show one of the spectra in a pixel
+spaxel_flux = flux[:, 24, 24]
+#plt.plot(wave, spaxel_flux)
+#plt.xlabel('Wavelength (Angstrom)')
+#plt.ylabel('Flux ($10^{-17}$ erg/cm$^2$/s/A)')
+#plt.title(p_IFU)
+#plt.show()
+
+# Read in the maps FITS file
+m.read_maps()
+
+# Read in the emission line measurements (Gaussian fit)
+# This is a big 3D array, with one 2D image per line.
+gflux = m.maps['EMLINE_GFLUX'].read()
+
+# We have to pick out the right line. The MNSA object
+# builds a little dictionary to help.
+#print(m.lineindx.keys())
+
+halpha_indx = m.lineindx['Ha-6564']
+hbeta_indx = m.lineindx['Hb-4862']
+SII_indx = m.lineindx['SII-6718']
+OI_indx = m.lineindx['OI-6302']
+OIII_indx = m.lineindx['OIII-5008']
+NII_indx = m.lineindx['NII-6585']
+
+#DAP Maps for Emission Lines of Interest
+halpha = gflux[halpha_indx, :, :]
+#plt.imshow(halpha, origin='lower', cmap='inferno')
+#plt.title('H-Alpha DAP')
+#plt.colorbar(label = 'Flux')
+#plt.show()
+
+hbeta = gflux[halpha_indx, :, :]
+#plt.imshow(hbeta, origin='lower', cmap='Greys')
+#plt.title('H-Beta DAP')
+#plt.show()
+
+SII = gflux[SII_indx, :, :]
+#plt.imshow(SII, origin='lower', cmap='Greys')
+#plt.title('SII DAP')
+#plt.colorbar(label = 'Flux')
+#plt.show()
+
+#OI = gflux[OI_indx, :, :]
+#plt.imshow(OI, origin='lower', cmap='Greys')
+#plt.title('OI DAP')
+#plt.colorbar(label = 'Flux')
+#plt.show()
+
+OIII = gflux[OIII_indx, :, :]
+#plt.imshow(OIII, origin='lower', cmap='Greys')
+#plt.title('OIII DAP')
+#plt.colorbar(label = 'Flux')
+#plt.show()
+
+#NII = gflux[NII_indx, :, :]
+#plt.imshow(NII, origin='lower', cmap='Greys')
+#plt.title('NII DAP')
+#plt.colorbar(label = 'Flux')
+#plt.show()
+
+#attempting to plot a masked h-alpha DAP map
+gfluxmask = m.maps['EMLINE_GFLUX_MASK'].read()
+halpha_mask = np.ma.array(halpha, mask = gfluxmask[halpha_indx,:,:])
+#plt.imshow(halpha_mask, origin = 'lower', cmap = 'inferno')
+#plt.title('Masked H-Alpha DAP')
+#plt.colorbar(label ='Flux')
+#plt.show()
+
+#if above is correct, then these are the masked arrays for all other emission lines of interest:
+hbeta_mask = np.ma.array(hbeta, mask = gfluxmask[hbeta_indx,:,:])
+SII_mask = np.ma.array(SII, mask = gfluxmask[SII_indx,:,:])
+OIII_mask = np.ma.array(OIII, mask = gfluxmask[OIII_indx,:,:])
+
+#don't want divide by zero errors when we calculate line ratios; make a mask that is comprised of good pixels AND exludes flux values less than or equal to zero: 
+#bit number = 0 --> no coverage in cube
+m = (halpha_mask == 0) | (hbeta_mask == 0 ) | (SII_mask == 0) | (OIII_mask == 0) | (halpha <= 0) | (hbeta <= 0) | (SII <= 0 ) | (OIII <= 0)
+
+#apply mask to h-alpha line emission flux measurement array
+ma_nz_halpha = np.ma.array(halpha, mask = m)
+#plt.imshow(ma_nz_halpha, origin = 'lower', cmap = 'inferno')
+#plt.title('Masked H-Alpha (Flux Emission > 0)')
+#plt.colorbar(label = 'Flux')
+#plt.show()
+
+#if above is correct then these are the correctly masked line emission flux measurements that are > 0:
+ma_nz_hbeta = np.ma.array(hbeta, mask = m)
+ma_nz_SII = np.ma.array(SII, mask = m)
+ma_nz_OIII = np.ma.array(OIII, mask = m)
+
+#BPT Diagram
+
+line_ratio1 = np.log(ma_nz_SII/ma_nz_halpha)
+line_ratio2= np.log(ma_nz_OIII/ma_nz_hbeta)
+
+plt.figure(figsize = (5,5))
+plt.scatter(line_ratio1, line_ratio2, marker ='.', linestyle = 'None')
+#plt.title(f'BPT Diagram for Galaxy {p_IFU}')
+plt.title('BPT Diagram for Galaxy 1-72322')
+plt.xlabel(r'log(SII/H${\alpha}$)')
+plt.ylabel(r'log(OIII/H${\beta}$)')
+plt.xlim(-1.5,1.0)
+plt.ylim(-1.5,2.0)
+plt.grid()
+plt.tight_layout()
+#plt.show()
+
+print(np.where(ma_nz_halpha == 0))
+print(np.where(ma_nz_hbeta == 0))
+print(np.where(ma_nz_SII == 0))
+print(np.where(ma_nz_OIII == 0))
+
+print('Max of Halpha:', np.max(ma_nz_halpha))
+print('Max of Hbeta:', np.max(ma_nz_hbeta))
+print('Max of SII:', np.max(ma_nz_SII))
+print('Max of OIII:',np.max(ma_nz_OIII))
+
+print('Min of Halpha:', np.min(ma_nz_halpha))
+print('Min of Hbeta:', np.min(ma_nz_hbeta))
+print('Min of SII:', np.min(ma_nz_SII))
+print('Min of OIII:',np.min(ma_nz_OIII))
+
+#np.savetxt('/uufs/chpc.utah.edu/common/home/u6044257/Desktop/line_ratio1.txt', line_ratio1, delimiter =', ')
+plt.savefig('/uufs/chpc.utah.edu/common/home/u6044257/Desktop/BPT_1-72322_naturallog.png', overwrite = True)
