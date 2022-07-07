@@ -38,43 +38,50 @@ gflux = m.maps['EMLINE_GFLUX'].read()
 
 halpha_indx = m.lineindx['Ha-6564']
 hbeta_indx = m.lineindx['Hb-4862']
-SII_indx = m.lineindx['SII-6718']
+SII_6718_indx = m.lineindx['SII-6718']
+SII_6732_indx = m.lineindx['SII-6732']
 OI_indx = m.lineindx['OI-6302']
 OIII_indx = m.lineindx['OIII-5008']
 NII_indx = m.lineindx['NII-6585']
 
 #DAP Maps for Emission Lines of Interest
 halpha = gflux[halpha_indx, :, :]
-#plt.imshow(halpha, origin='lower', cmap='inferno')
-#plt.title('H-Alpha DAP')
+plt.imshow(halpha, origin='lower', cmap='inferno')
+plt.title('H-Alpha DAP')
+plt.colorbar(label = 'Flux')
+#plt.show()
+
+hbeta = gflux[hbeta_indx, :, :]
+plt.imshow(hbeta, origin='lower', cmap='inferno')
+plt.title('H-Beta DAP')
+#plt.show()
+
+SII_6718 = gflux[SII_6718_indx, :, :]
+#plt.imshow(SII, origin='lower', cmap='inferno')
+#plt.title('SII-6718 DAP')
 #plt.colorbar(label = 'Flux')
 #plt.show()
 
-hbeta = gflux[halpha_indx, :, :]
-#plt.imshow(hbeta, origin='lower', cmap='Greys')
-#plt.title('H-Beta DAP')
-#plt.show()
-
-SII = gflux[SII_indx, :, :]
-#plt.imshow(SII, origin='lower', cmap='Greys')
-#plt.title('SII DAP')
+SII_6732 = gflux[SII_6732_indx, :, :]
+#plt.imshow(SII_2, origin='lower', cmap='inferno')
+#plt.title('SII-6732 DAP')
 #plt.colorbar(label = 'Flux')
 #plt.show()
 
 #OI = gflux[OI_indx, :, :]
-#plt.imshow(OI, origin='lower', cmap='Greys')
+#plt.imshow(OI, origin='lower', cmap='inferno')
 #plt.title('OI DAP')
 #plt.colorbar(label = 'Flux')
 #plt.show()
 
 OIII = gflux[OIII_indx, :, :]
-#plt.imshow(OIII, origin='lower', cmap='Greys')
+#plt.imshow(OIII, origin='lower', cmap='inferno')
 #plt.title('OIII DAP')
 #plt.colorbar(label = 'Flux')
 #plt.show()
 
 #NII = gflux[NII_indx, :, :]
-#plt.imshow(NII, origin='lower', cmap='Greys')
+#plt.imshow(NII, origin='lower', cmap='inferno')
 #plt.title('NII DAP')
 #plt.colorbar(label = 'Flux')
 #plt.show()
@@ -89,12 +96,13 @@ halpha_mask = np.ma.array(halpha, mask = gfluxmask[halpha_indx,:,:])
 
 #if above is correct, then these are the masked arrays for all other emission lines of interest:
 hbeta_mask = np.ma.array(hbeta, mask = gfluxmask[hbeta_indx,:,:])
-SII_mask = np.ma.array(SII, mask = gfluxmask[SII_indx,:,:])
+SII_6718_mask = np.ma.array(SII_6718, mask = gfluxmask[SII_6718_indx,:,:])
+SII_6732_mask = np.ma.array(SII_6732, mask = gfluxmask[SII_6732_indx,:,:])
 OIII_mask = np.ma.array(OIII, mask = gfluxmask[OIII_indx,:,:])
 
 #don't want divide by zero errors when we calculate line ratios; make a mask that is comprised of good pixels AND exludes flux values less than or equal to zero: 
 #bit number = 0 --> no coverage in cube
-m = (halpha_mask == 0) | (hbeta_mask == 0 ) | (SII_mask == 0) | (OIII_mask == 0) | (halpha <= 0) | (hbeta <= 0) | (SII <= 0 ) | (OIII <= 0)
+m = (halpha_mask == 0) | (hbeta_mask == 0 ) | (SII_6718_mask == 0) | (SII_6732_mask ==0) | (OIII_mask == 0) | (halpha <= 0) | (hbeta <= 0) | (SII_6718 <= 0 ) | (SII_6732 <= 0 ) |(OIII <= 0)
 
 #apply mask to h-alpha line emission flux measurement array
 ma_nz_halpha = np.ma.array(halpha, mask = m)
@@ -105,13 +113,17 @@ ma_nz_halpha = np.ma.array(halpha, mask = m)
 
 #if above is correct then these are the correctly masked line emission flux measurements that are > 0:
 ma_nz_hbeta = np.ma.array(hbeta, mask = m)
-ma_nz_SII = np.ma.array(SII, mask = m)
+ma_nz_SII_6718 = np.ma.array(SII_6718, mask = m)
+ma_nz_SII_6732 = np.ma.array(SII_6732, mask = m)
 ma_nz_OIII = np.ma.array(OIII, mask = m)
+
+#array of the sum of the SII doublet
+ma_nz_SII =  ma_nz_SII_6718 + ma_nz_SII_6732
 
 #BPT Diagram
 
-line_ratio1 = np.log(ma_nz_SII/ma_nz_halpha)
-line_ratio2= np.log(ma_nz_OIII/ma_nz_hbeta)
+line_ratio1 = np.log10(ma_nz_SII/ma_nz_halpha)
+line_ratio2= np.log10(ma_nz_OIII/ma_nz_hbeta)
 
 plt.figure(figsize = (5,5))
 plt.scatter(line_ratio1, line_ratio2, marker ='.', linestyle = 'None')
@@ -125,6 +137,7 @@ plt.grid()
 plt.tight_layout()
 #plt.show()
 
+print(ma_nz_SII)
 print(np.where(ma_nz_halpha == 0))
 print(np.where(ma_nz_hbeta == 0))
 print(np.where(ma_nz_SII == 0))
@@ -141,4 +154,4 @@ print('Min of SII:', np.min(ma_nz_SII))
 print('Min of OIII:',np.min(ma_nz_OIII))
 
 #np.savetxt('/uufs/chpc.utah.edu/common/home/u6044257/Desktop/line_ratio1.txt', line_ratio1, delimiter =', ')
-plt.savefig('/uufs/chpc.utah.edu/common/home/u6044257/Desktop/BPT_1-72322_naturallog.png', overwrite = True)
+#plt.savefig('/uufs/chpc.utah.edu/common/home/u6044257/Desktop/Belfiore BPT Diagrams/dr17off_SIIdoublet/BPT_1-72322_SII_base10.png', overwrite = True)
