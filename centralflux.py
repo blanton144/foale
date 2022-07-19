@@ -14,6 +14,10 @@ f = fitsio.read(summary_file)
 
 # extract plateifu for each galaxy
 plate_IFU = f['plateifu']
+plate = f['plate']
+
+# removing these elements because FITSIO failed to find these files
+plate_IFU = np.delete(plate_IFU, [22,23,24,25,26,27,28,29,30,31])
 
 def central_flux(p_IFU):
     """Function to calculate central flux for each emission line of interest"""
@@ -77,7 +81,7 @@ def central_flux(p_IFU):
     ma_nz_SII =  ma_nz_SII_6718 + ma_nz_SII_6732
 
 
-    # central flux
+    # central flux of each emission line
     halpha_cf = (ma_nz_halpha*PSF).sum() / (PSF**2).sum()
     hbeta_cf = (ma_nz_hbeta*PSF).sum() / (PSF**2).sum()
     SII_cf = (ma_nz_SII*PSF).sum() / (PSF**2).sum()
@@ -88,8 +92,9 @@ def central_flux(p_IFU):
     return[halpha_cf, hbeta_cf, SII_cf, OI_cf, OIII_cf, NII_cf]
 
 # Measure central flux for each galaxy
-for i in plate_IFU:
-    central_flux(i)
+#for i in plate_IFU:
+#    central_flux(i)
 
-#np.savetxt('/uufs/chpc.utah.edu/common/home/u6044257/Desktop/MNSA_centralflux.txt', cf, delimiter =', ')
-
+#print(np.where(plate_IFU == '10141-6104'))
+#print(plate)
+print(np.where(plate == 10142))
