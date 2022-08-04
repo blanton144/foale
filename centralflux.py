@@ -98,11 +98,15 @@ def central_flux(p_IFU):
 # Measure central flux for each good galaxy
 # plate IFU's to test: '10001-12701', '10141-1902'
 
+p = ['10001-12701','10001-12702', '10001-12703', '10141-1902']
+p = np.asarray(p)
 
 starttime = time.time()
+centralflux_data = []
+for i in p:
+    centralflux_data.append((i, central_flux(i)))
 
-for i in plate_IFU:
-    central_flux(i)
+print(centralflux_data)
     
 endtime = time.time()
 elapsedtime = endtime - starttime
