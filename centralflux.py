@@ -93,7 +93,7 @@ def central_flux(p_IFU):
         OIII_cf = (ma_nz_OIII*PSF).sum() / (PSF**2).sum()
         NII_cf = (ma_nz_NII*PSF).sum() / (PSF**2).sum()
 
-        return[halpha_cf, hbeta_cf, SII_cf, OI_cf, OIII_cf, NII_cf]
+        return i, halpha_cf, hbeta_cf, SII_cf, OI_cf, OIII_cf, NII_cf
 
 # Measure central flux for each good galaxy
 
@@ -101,12 +101,126 @@ starttime = time.time()
 centralflux_data = []
 
 for i in plate_IFU:
-    centralflux_data.append((i, central_flux(i)))
+    centralflux_data.append(central_flux(i))
 
-print(centralflux_data)
-    
 endtime = time.time()
 elapsedtime = endtime - starttime
 
+# make centralflux_data a structured ndarray
+cf_dtype = ([('plateifu', np.compat.unicode, 15),('halpha_cf', np.float64),
+                                   ('hbeta_cf', np.float64),('SII_cf', np.float64),
+                                   ('OI_cf', np.float64),('OIII_cf', np.float64),
+                                   ('NII_cf', np.float64)])
+
+centralflux_data = np.array(centralflux_data, dtype = cf_dtype)
+
+# save data to a FITS file
+
+filename = 'centralflux.fits'
+fitsio.write(filename, centralflux_data, clobber=True)
+
+# BPT Diagram
+
+line_ratio1 = np.log10(centralflux_data['SII_cf']/centralflux_data['halpha_cf'])
+line_ratio2= np.log10(centralflux_data['OI_cf']/centralflux_data['halpha_cf'])
+line_ratio3= np.log10(centralflux_data['OIII_cf']/centralflux_data['hbeta_cf'])
+line_ratio4 = np.log10(centralflux_data['NII_cf']/centralflux_data['halpha_cf'])
+
+# Kewley (2006) lines
+# first create a linspace of points to plot the classification lines
+x_SII_sf = np.linspace(-1.5,0.065)
+x_SII_sy_liner = np.linspace(-0.31,1.5)
+
+x_NII_sf = np.linspace(-1.31, 0.045)
+x_NII_comp = np.linspace(-2.2, 0.35)
+
+x_OI_sf = np.linspace(-2.5, -0.7)
+x_OI_sy_liner = np.linspace(-1.12, 0.5)
+
+def starformation_SII(log_SII_Ha):
+    """Star formation classification line for log([SII]/Ha)"""
+    return 0.72/(log_SII_Ha - 0.32) + 1.30
+
+def seyfert_liner_SII(log_SII_Ha):
+    """Seyfert and LINER classification line for log([SII]/Ha)"""
+    return 1.89 * log_SII_Ha + 0.76
+
+def seyfert_liner_OI(log_OI_Ha):
+    """Seyfert and LINER classification line for log([OI]/Ha)"""
+    return 1.18 * log_OI_Ha + 1.30
+
+def starformation_OI(log_OI_Ha):
+    """Star formation classification line for log([OI]/Ha)"""
+    return 0.73 / (log_OI_Ha + 0.59) + 1.33
+
+def composite_NII(log_NII_Ha):
+    """Composite galaxy classification line for log([NII]/Ha)"""
+    return 0.61/(log_NII_Ha - 0.47) + 1.19
+
+def starformation_NII(log_NII_Ha):
+    """Composite galaxy and LINER classification line for log([NII]/Ha)"""
+    return 0.61 / (log_NII_Ha - 0.05) + 1.3
+
+# plot diagrams
+
+#log([OIII]/H-beta)/([SII]/H-alpha)
+plt.figure(figsize = (5,5))
+plt.scatter(line_ratio1, line_ratio3, marker ='.', linestyle = 'None')
+plt.plot(x_SII_sf, starformation_SII(x_SII_sf), '-k')
+plt.plot(x_SII_sy_liner, seyfert_liner_SII(x_SII_sy_liner), '--k')
+plt.text(-1,1.2, 'Seyfert', fontsize = 12)
+plt.text(-1.35,-0.25, 'Star Formation', fontsize = 12)
+plt.text(0.4, 0.15, 'LINER', fontsize = 12)
+
+plt.title('BPT Diagram')
+plt.xlabel(r'log([SII]/H${\alpha}$)')
+plt.ylabel(r'log([OIII]/H${\beta}$)')
+plt.xlim(-1.5,1.0)
+plt.ylim(-1.0,1.5)
+plt.tight_layout()
+plt.minorticks_on()
+plt.savefig('/uufs/chpc.utah.edu/common/home/u6044257/Desktop/BPT_SII_Ha_OIII_Hb.png', overwrite = True)
+plt.show()
+
+#log([OIII]/H-beta) & ([OI]/H-alpha)
+plt.figure(figsize = (5,5))
+plt.scatter(line_ratio2, line_ratio3, marker ='.', linestyle = 'None')
+plt.plot(x_OI_sf, starformation_OI(x_OI_sf), '-k')
+plt.plot(x_OI_sy_liner, seyfert_liner_OI(x_OI_sy_liner), '--k')
+plt.text(-1.5,1.05, 'Seyfert', fontsize = 12)
+plt.text(-0.6, 0.15, 'LINER', fontsize = 12)
+
+plt.title('BPT Diagram')
+plt.xlabel(r'log([OI]/H${\alpha}$)')
+plt.ylabel(r'log([OIII]/H${\beta}$)')
+plt.xlim(-2.5,0.5)
+plt.ylim(-1.0,1.5)
+plt.tight_layout()
+plt.minorticks_on()
+plt.savefig('/uufs/chpc.utah.edu/common/home/u6044257/Desktop/BPT_OI_Ha_OIII_Hb.png', overwrite = True)
+plt.show()
+
+#log([OIII]/H-beta) & ([NII]/H-alpha)
+plt.figure(figsize = (5,5))
+plt.scatter(line_ratio4, line_ratio3, marker ='.', linestyle = 'None')
+plt.plot(x_NII_sf, starformation_NII(x_NII_sf), '--k')
+plt.plot(x_NII_comp, composite_NII(x_NII_comp), '-k')
+plt.text(-0.75,1.15, 'AGN', fontsize = 12)
+plt.text(-1.7,-0.15, 'Star Formation', fontsize = 12)
+plt.text(-0.29, -0.45, 'Comp', fontsize = 12)
+
+plt.title('BPT Diagram')
+plt.xlabel(r'log([NII]/H${\alpha}$)')
+plt.ylabel(r'log([OIII]/H${\beta}$)')
+plt.xlim(-2.0,1.0)
+plt.ylim(-1.0,1.5)
+plt.tight_layout()
+plt.minorticks_on()
+plt.savefig('/uufs/chpc.utah.edu/common/home/u6044257/Desktop/BPT_NII_Ha_OIII_Hb.png', overwrite = True)
+plt.show()
+
 print('Elapsed time is:', time.strftime("%Hh%Mm%Ss", time.gmtime(elapsedtime)))
+
+data = fitsio.FITS('centralflux.fits')
+print(data)
 
