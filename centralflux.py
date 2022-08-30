@@ -17,6 +17,9 @@ header = fitsio.read(summary_file, header = True)
 # extract plateifu for each galaxy
 plate_IFU = f['plateifu']
 
+# example slice
+p = plate_IFU[0:20]
+
 def central_flux(p_IFU):
     """Function to check whether a galaxy has a DAP file associated with it and
        calculates central flux of each emission line of interest for each good galaxy"""
@@ -32,7 +35,6 @@ def central_flux(p_IFU):
         success = False
         
     if(success is True):
-        
         wave = m.cube['WAVE'].read()
         flux = m.cube['FLUX'].read()
         PSF = m.cube['RPSF'].read()
@@ -93,38 +95,44 @@ def central_flux(p_IFU):
         OIII_cf = (ma_nz_OIII*PSF).sum() / (PSF**2).sum()
         NII_cf = (ma_nz_NII*PSF).sum() / (PSF**2).sum()
 
-        return i, halpha_cf, hbeta_cf, SII_cf, OI_cf, OIII_cf, NII_cf
+        # calculate central flux line ratios for BPT diagrams
+        log_SII_Ha_cf = np.log10(SII_cf/halpha_cf)
+        log_OI_Ha_cf= np.log10(OI_cf/halpha_cf)
+        log_OIII_Hb_cf= np.log10(OIII_cf/hbeta_cf)
+        log_NII_Ha_cf = np.log10(NII_cf/halpha_cf)
+
+        return i, halpha_cf, hbeta_cf, SII_cf, OI_cf, OIII_cf, NII_cf, log_SII_Ha_cf, log_OI_Ha_cf, log_OIII_Hb_cf, log_NII_Ha_cf
 
 # Measure central flux for each good galaxy
 
 starttime = time.time()
 centralflux_data = []
 
-for i in plate_IFU:
-    centralflux_data.append(central_flux(i))
+#for i in plate_IFU:
+#    centralflux_data.append(central_flux(i))
 
+# example slice to check before running all galaxies
+for i in p:
+    centralflux_data.append(central_flux(i))
+    
 endtime = time.time()
 elapsedtime = endtime - starttime
 
 # make centralflux_data a structured ndarray
-cf_dtype = ([('plateifu', np.compat.unicode, 15),('halpha_cf', np.float64),
-                                   ('hbeta_cf', np.float64),('SII_cf', np.float64),
-                                   ('OI_cf', np.float64),('OIII_cf', np.float64),
-                                   ('NII_cf', np.float64)])
+cf_dtype = ([('plateifu', np.compat.unicode, 15),('halpha_cf', np.float64), ('hbeta_cf', np.float64),
+             ('SII_cf', np.float64), ('OI_cf', np.float64),('OIII_cf', np.float64),
+             ('NII_cf', np.float64), ('log_SII_Ha_cf', np.float64), ('log_OI_Ha_cf', np.float64),
+             ('log_OIII_Hb_cf', np.float64),('log_NII_Ha_cf', np.float64)])
 
 centralflux_data = np.array(centralflux_data, dtype = cf_dtype)
 
 # save data to a FITS file
 
-filename = 'centralflux.fits'
-fitsio.write(filename, centralflux_data, clobber=True)
-
-# BPT Diagram
-
-line_ratio1 = np.log10(centralflux_data['SII_cf']/centralflux_data['halpha_cf'])
-line_ratio2= np.log10(centralflux_data['OI_cf']/centralflux_data['halpha_cf'])
-line_ratio3= np.log10(centralflux_data['OIII_cf']/centralflux_data['hbeta_cf'])
-line_ratio4 = np.log10(centralflux_data['NII_cf']/centralflux_data['halpha_cf'])
+#filename = 'centralflux.fits'
+#fitsio.write(filename, centralflux_data, clobber=True)
+#data = fitsio.FITS(filename)
+#print(data)
+#data.close()
 
 # Kewley (2006) lines
 # first create a linspace of points to plot the classification lines
@@ -165,7 +173,7 @@ def starformation_NII(log_NII_Ha):
 
 #log([OIII]/H-beta)/([SII]/H-alpha)
 plt.figure(figsize = (5,5))
-plt.scatter(line_ratio1, line_ratio3, marker ='.', linestyle = 'None')
+plt.scatter(centralflux_data['log_SII_Ha_cf'], centralflux_data['log_OIII_Hb_cf'],  s = 50, alpha = 0.3, marker ='.', linestyle = 'None')
 plt.plot(x_SII_sf, starformation_SII(x_SII_sf), '-k')
 plt.plot(x_SII_sy_liner, seyfert_liner_SII(x_SII_sy_liner), '--k')
 plt.text(-1,1.2, 'Seyfert', fontsize = 12)
@@ -184,7 +192,7 @@ plt.show()
 
 #log([OIII]/H-beta) & ([OI]/H-alpha)
 plt.figure(figsize = (5,5))
-plt.scatter(line_ratio2, line_ratio3, marker ='.', linestyle = 'None')
+plt.scatter(centralflux_data['log_OI_Ha_cf'], centralflux_data['log_OIII_Hb_cf'],  s = 50, alpha = 0.3, marker ='.', linestyle = 'None')
 plt.plot(x_OI_sf, starformation_OI(x_OI_sf), '-k')
 plt.plot(x_OI_sy_liner, seyfert_liner_OI(x_OI_sy_liner), '--k')
 plt.text(-1.5,1.05, 'Seyfert', fontsize = 12)
@@ -202,7 +210,7 @@ plt.show()
 
 #log([OIII]/H-beta) & ([NII]/H-alpha)
 plt.figure(figsize = (5,5))
-plt.scatter(line_ratio4, line_ratio3, marker ='.', linestyle = 'None')
+plt.scatter(centralflux_data['log_NII_Ha_cf'], centralflux_data['log_OIII_Hb_cf'],  s = 50, alpha = 0.3, marker ='.', linestyle = 'None')
 plt.plot(x_NII_sf, starformation_NII(x_NII_sf), '--k')
 plt.plot(x_NII_comp, composite_NII(x_NII_comp), '-k')
 plt.text(-0.75,1.15, 'AGN', fontsize = 12)
@@ -221,6 +229,56 @@ plt.show()
 
 print('Elapsed time is:', time.strftime("%Hh%Mm%Ss", time.gmtime(elapsedtime)))
 
-data = fitsio.FITS('centralflux.fits')
-print(data)
+# now let's check our central flux values with those calculated from Pipe3D
+# here is an example slice before we do this for all galaxies
+pipe3D = fitsio.FITS('SDSS17Pipe3D_v3_1_1.fits')
+pipe3D_galproperties = pipe3D[1][0:20]
 
+pipe3D_plateifu = pipe3D_galproperties['plateifu']
+pipe3D_log_SII_Ha_cf = pipe3D_galproperties['log_SII_Ha_cen']
+pipe3D_log_OI_Ha_cf = pipe3D_galproperties['log_OI_Ha_cen']
+pipe3D_log_OIII_Hb_cf= pipe3D_galproperties['log_OIII_Hb_cen']
+pipe3D_log_NII_Ha_cf = pipe3D_galproperties['log_NII_Ha_cen']
+
+pipe3D_log_SII_Ha_cf_err = pipe3D_galproperties['e_log_SII_Ha_cen']
+pipe3D_log_OI_Ha_cf_err = pipe3D_galproperties['e_log_OI_Ha_cen']
+pipe3D_log_OIII_Hb_cf_err = pipe3D_galproperties['e_log_OIII_Hb_cen']
+pipe3D_log_NII_Ha_cf_err = pipe3D_galproperties['e_log_NII_Ha_cen']
+
+# percent error between calculated log values and Pipe3D log values of central flux (in percent)
+err_1 = np.abs((centralflux_data['log_SII_Ha_cf'] - pipe3D_log_SII_Ha_cf) / pipe3D_log_SII_Ha_cf) * 100 
+err_2 = np.abs((centralflux_data['log_OI_Ha_cf'] - pipe3D_log_OI_Ha_cf) / pipe3D_log_OI_Ha_cf) * 100
+err_3 = np.abs((centralflux_data['log_OIII_Hb_cf'] - pipe3D_log_OIII_Hb_cf) / pipe3D_log_OIII_Hb_cf) * 100
+err_4 = np.abs((centralflux_data['log_NII_Ha_cf'] - pipe3D_log_NII_Ha_cf) / pipe3D_log_NII_Ha_cf) * 100
+      
+print('log_SII_Ha_cf error:',  err_1)
+print('log_OI_Ha_cf error:', err_2)
+print('log_OIII_Hb_cf error:', err_3)
+print('log_NII_Ha_cf error:', err_4)
+
+# the problem when running all galaxies is that centralflux_data has a shape of 11273 and pipe3D has a shape of 10220
+
+"""
+# now let's check our central flux values with those calculated from Pipe3D
+pipe3D = fitsio.FITS('SDSS17Pipe3D_v3_1_1.fits')
+pipe3D_galproperties = pipe3D[1].read()
+
+pipe3D_plateifu = pipe3D_galproperties['plateifu']
+pipe3D_log_SII_Ha_cf = pipe3D_galproperties['log_SII_Ha_cen']
+pipe3D_log_OI_Ha_cf = pipe3D_galproperties['log_OI_Ha_cen']
+pipe3D_log_OIII_Hb_cf= pipe3D_galproperties['log_OIII_Hb_cen']
+pipe3D_log_NII_Ha_cf = pipe3D_galproperties['log_NII_Ha_cen']
+
+pipe3D_log_SII_Ha_cf_err = pipe3D_galproperties['e_log_SII_Ha_cen']
+pipe3D_log_OI_Ha_cf_err = pipe3D_galproperties['e_log_OI_Ha_cen']
+pipe3D_log_OIII_Hb_cf_err = pipe3D_galproperties['e_log_OIII_Hb_cen']
+pipe3D_log_NII_Ha_cf_err = pipe3D_galproperties['e_log_NII_Ha_cen']
+
+# percent error between calculated log values and Pipe3D log values of central flux (in percent)
+err_1 = np.abs((centralflux_data['log_SII_Ha_cf'] - pipe3D_log_SII_Ha_cf) / pipe3D_log_SII_Ha_cf) * 100 
+err_2 = np.abs((centralflux_data['log_OI_Ha_cf'] - pipe3D_log_OI_Ha_cf) / pipe3D_log_OI_Ha_cf) * 100
+err_3 = np.abs((centralflux_data['log_OIII_Hb_cf'] - pipe3D_log_OIII_Hb_cf) / pipe3D_log_OIII_Hb_cf) * 100
+err_4 = np.abs((centralflux_data['log_NII_Ha_cf'] - pipe3D_log_NII_Ha_cf) / pipe3D_log_NII_Ha_cf) * 100
+
+print(err_1, err_2, err_3, err_4)
+"""
