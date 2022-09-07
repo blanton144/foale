@@ -15,10 +15,20 @@ f = fitsio.read(summary_file)
 header = fitsio.read(summary_file, header = True)
 
 # extract plateifu for each galaxy
-plate_IFU = f['plateifu']
+MNSA_plateifu = f['plateifu']
 
-# example slice
-p = plate_IFU[0:20]
+# initialize Pipe3D data
+pipe3D = fitsio.FITS('SDSS17Pipe3D_v3_1_1.fits')
+pipe3D_galproperties = pipe3D[1]
+
+# match the plateifus from Pipe3D with MNSA
+pipe3D_plateifu = pipe3D_galproperties['plateifu'][:]
+pipe3D_index = np.zeros(len(pipe3D_plateifu), dtype = int)
+
+for i, p_ifu in enumerate(pipe3D_plateifu):
+    pipe3D_index[i] = np.where(p_ifu == MNSA_plateifu)[0][0]
+
+print(MNSA_plateifu[pipe3D_index] == pipe3D_plateifu)
 
 def central_flux(p_IFU):
     """Function to check whether a galaxy has a DAP file associated with it and
@@ -108,13 +118,9 @@ def central_flux(p_IFU):
 starttime = time.time()
 centralflux_data = []
 
-#for i in plate_IFU:
-#    centralflux_data.append(central_flux(i))
-
-# example slice to check before running all galaxies
-for i in p:
+for i in MNSA_plateifu[pipe3D_index]:
     centralflux_data.append(central_flux(i))
-    
+
 endtime = time.time()
 elapsedtime = endtime - starttime
 
@@ -128,11 +134,11 @@ centralflux_data = np.array(centralflux_data, dtype = cf_dtype)
 
 # save data to a FITS file
 
-#filename = 'centralflux.fits'
-#fitsio.write(filename, centralflux_data, clobber=True)
-#data = fitsio.FITS(filename)
-#print(data)
-#data.close()
+filename = 'centralflux.fits'
+fitsio.write(filename, centralflux_data, clobber=True)
+data = fitsio.FITS(filename)
+print(data)
+data.close()
 
 # Kewley (2006) lines
 # first create a linspace of points to plot the classification lines
@@ -230,55 +236,36 @@ plt.show()
 print('Elapsed time is:', time.strftime("%Hh%Mm%Ss", time.gmtime(elapsedtime)))
 
 # now let's check our central flux values with those calculated from Pipe3D
-# here is an example slice before we do this for all galaxies
-pipe3D = fitsio.FITS('SDSS17Pipe3D_v3_1_1.fits')
-pipe3D_galproperties = pipe3D[1][0:20]
 
-pipe3D_plateifu = pipe3D_galproperties['plateifu']
-pipe3D_log_SII_Ha_cf = pipe3D_galproperties['log_SII_Ha_cen']
-pipe3D_log_OI_Ha_cf = pipe3D_galproperties['log_OI_Ha_cen']
-pipe3D_log_OIII_Hb_cf= pipe3D_galproperties['log_OIII_Hb_cen']
-pipe3D_log_NII_Ha_cf = pipe3D_galproperties['log_NII_Ha_cen']
+# galaxy properties we are interested in
+pipe3D_log_SII_Ha_cf = pipe3D_galproperties['log_SII_Ha_cen'][:]
+pipe3D_log_OI_Ha_cf = pipe3D_galproperties['log_OI_Ha_cen'][:]
+pipe3D_log_OIII_Hb_cf= pipe3D_galproperties['log_OIII_Hb_cen'][:]
+pipe3D_log_NII_Ha_cf = pipe3D_galproperties['log_NII_Ha_cen'][:]
 
-pipe3D_log_SII_Ha_cf_err = pipe3D_galproperties['e_log_SII_Ha_cen']
-pipe3D_log_OI_Ha_cf_err = pipe3D_galproperties['e_log_OI_Ha_cen']
-pipe3D_log_OIII_Hb_cf_err = pipe3D_galproperties['e_log_OIII_Hb_cen']
-pipe3D_log_NII_Ha_cf_err = pipe3D_galproperties['e_log_NII_Ha_cen']
+pipe3D_log_SII_Ha_cf_err = pipe3D_galproperties['e_log_SII_Ha_cen'][:]
+pipe3D_log_OI_Ha_cf_err = pipe3D_galproperties['e_log_OI_Ha_cen'][:]
+pipe3D_log_OIII_Hb_cf_err = pipe3D_galproperties['e_log_OIII_Hb_cen'][:]
+pipe3D_log_NII_Ha_cf_err = pipe3D_galproperties['e_log_NII_Ha_cen'][:]
 
 # percent error between calculated log values and Pipe3D log values of central flux (in percent)
 err_1 = np.abs((centralflux_data['log_SII_Ha_cf'] - pipe3D_log_SII_Ha_cf) / pipe3D_log_SII_Ha_cf) * 100 
 err_2 = np.abs((centralflux_data['log_OI_Ha_cf'] - pipe3D_log_OI_Ha_cf) / pipe3D_log_OI_Ha_cf) * 100
 err_3 = np.abs((centralflux_data['log_OIII_Hb_cf'] - pipe3D_log_OIII_Hb_cf) / pipe3D_log_OIII_Hb_cf) * 100
 err_4 = np.abs((centralflux_data['log_NII_Ha_cf'] - pipe3D_log_NII_Ha_cf) / pipe3D_log_NII_Ha_cf) * 100
-      
+
+print(centralflux_data['log_SII_Ha_cf'])
+print(centralflux_data['log_OI_Ha_cf'])
+print(centralflux_data['log_OIII_Hb_cf'])
+print(centralflux_data['log_NII_Ha_cf'] )
+
+print(pipe3D_log_SII_Ha_cf)
+print(pipe3D_log_OI_Ha_cf)
+print(pipe3D_log_OIII_Hb_cf)
+print(pipe3D_log_NII_Ha_cf)
+    
 print('log_SII_Ha_cf error:',  err_1)
 print('log_OI_Ha_cf error:', err_2)
 print('log_OIII_Hb_cf error:', err_3)
 print('log_NII_Ha_cf error:', err_4)
 
-# the problem when running all galaxies is that centralflux_data has a shape of 11273 and pipe3D has a shape of 10220
-
-"""
-# now let's check our central flux values with those calculated from Pipe3D
-pipe3D = fitsio.FITS('SDSS17Pipe3D_v3_1_1.fits')
-pipe3D_galproperties = pipe3D[1].read()
-
-pipe3D_plateifu = pipe3D_galproperties['plateifu']
-pipe3D_log_SII_Ha_cf = pipe3D_galproperties['log_SII_Ha_cen']
-pipe3D_log_OI_Ha_cf = pipe3D_galproperties['log_OI_Ha_cen']
-pipe3D_log_OIII_Hb_cf= pipe3D_galproperties['log_OIII_Hb_cen']
-pipe3D_log_NII_Ha_cf = pipe3D_galproperties['log_NII_Ha_cen']
-
-pipe3D_log_SII_Ha_cf_err = pipe3D_galproperties['e_log_SII_Ha_cen']
-pipe3D_log_OI_Ha_cf_err = pipe3D_galproperties['e_log_OI_Ha_cen']
-pipe3D_log_OIII_Hb_cf_err = pipe3D_galproperties['e_log_OIII_Hb_cen']
-pipe3D_log_NII_Ha_cf_err = pipe3D_galproperties['e_log_NII_Ha_cen']
-
-# percent error between calculated log values and Pipe3D log values of central flux (in percent)
-err_1 = np.abs((centralflux_data['log_SII_Ha_cf'] - pipe3D_log_SII_Ha_cf) / pipe3D_log_SII_Ha_cf) * 100 
-err_2 = np.abs((centralflux_data['log_OI_Ha_cf'] - pipe3D_log_OI_Ha_cf) / pipe3D_log_OI_Ha_cf) * 100
-err_3 = np.abs((centralflux_data['log_OIII_Hb_cf'] - pipe3D_log_OIII_Hb_cf) / pipe3D_log_OIII_Hb_cf) * 100
-err_4 = np.abs((centralflux_data['log_NII_Ha_cf'] - pipe3D_log_NII_Ha_cf) / pipe3D_log_NII_Ha_cf) * 100
-
-print(err_1, err_2, err_3, err_4)
-"""
