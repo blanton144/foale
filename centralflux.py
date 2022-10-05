@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# In[1]:
+
+
 #!/usr/bin/env python
 
 import numpy as np
@@ -9,6 +12,10 @@ import os
 import foale.mnsa
 import fitsio
 import time
+
+
+# In[2]:
+
 
 # initialize data for all galaxies in survey
 version = 'dr17-v0.1'
@@ -108,6 +115,8 @@ def central_flux(p_IFU):
         ma_nz_OIII = np.ma.array(OIII, mask = m)
         ma_nz_NII = np.ma.array(NII, mask = m)
         
+        ma_nz_halpha_ivar = np.ma.array(halpha_ivar, mask = m)
+        ma_nz_hbeta_ivar = np.ma.array(hbeta_ivar, mask = m)
         ma_nz_SII_6718_ivar = np.ma.array(SII_6718_ivar, mask = m)
         ma_nz_SII_6732_ivar = np.ma.array(SII_6732_ivar, mask = m)
         ma_nz_SII_ivar = ma_nz_SII_6718_ivar + ma_nz_SII_6732_ivar
@@ -115,17 +124,21 @@ def central_flux(p_IFU):
         ma_nz_OIII_ivar = np.ma.array(OIII_ivar, mask = m)
         ma_nz_NII_ivar = np.ma.array(NII_ivar, mask = m)
         
-        # variance
+        # variance calculation
         ma_nz_PSF = np.ma.array(PSF, mask = m)
         
         w = ma_nz_PSF / (ma_nz_PSF**2).sum()
         
+        halpha_variance = np.sum(w**2 / ma_nz_halpha_ivar)
+        hbeta_variance = np.sum(w**2 / ma_nz_hbeta_ivar)
         SII_variance = np.sum(w**2 / ma_nz_SII_ivar)
         OI_variance = np.sum(w**2 / ma_nz_OI_ivar)
         OIII_variance = np.sum(w**2 / ma_nz_OIII_ivar)
         NII_variance = np.sum(w**2 / ma_nz_NII_ivar)
         
         # standard deviation
+        halpha_sigma = np.sqrt(halpha_variance)
+        hbeta_sigma = np.sqrt(hbeta_variance)
         SII_sigma = np.sqrt(SII_variance)
         OI_sigma = np.sqrt(OI_variance)
         OIII_sigma = np.sqrt(OIII_variance)
@@ -151,7 +164,11 @@ def central_flux(p_IFU):
         log_OIII_Hb_cf= np.log10(OIII_cf/hbeta_cf)
         log_NII_Ha_cf = np.log10(NII_cf/halpha_cf)
 
-        return i, halpha_cf, hbeta_cf, SII_cf, OI_cf, OIII_cf, NII_cf, log_halpha_cf, log_hbeta_cf, log_SII_cf, log_OI_cf, log_OIII_cf, log_NII_cf, log_SII_Ha_cf, log_OI_Ha_cf, log_OIII_Hb_cf, log_NII_Ha_cf, SII_variance, OI_variance, OIII_variance, NII_variance, SII_sigma, OI_sigma, OIII_sigma, NII_sigma
+        return i, halpha_cf, hbeta_cf, SII_cf, OI_cf, OIII_cf, NII_cf, log_halpha_cf, log_hbeta_cf, log_SII_cf, log_OI_cf, log_OIII_cf, log_NII_cf, log_SII_Ha_cf, log_OI_Ha_cf, log_OIII_Hb_cf, log_NII_Ha_cf, halpha_variance, hbeta_variance, SII_variance, OI_variance, OIII_variance, NII_variance, halpha_sigma, hbeta_sigma, SII_sigma, OI_sigma, OIII_sigma, NII_sigma
+
+
+# In[3]:
+
 
 # Measure central flux for each good galaxy
 starttime = time.time()
@@ -169,12 +186,17 @@ cf_dtype = ([('plateifu', np.compat.unicode, 15),('halpha_cf', np.float64), ('hb
              ('NII_cf', np.float64), ('log_halpha_cf', np.float64),('log_hbeta_cf', np.float64),
              ('log_SII_cf', np.float64), ('log_OI_cf', np.float64), ('log_OIII_cf', np.float64), 
              ('log_NII_cf', np.float64), ('log_SII_Ha_cf', np.float64), ('log_OI_Ha_cf', np.float64),
-             ('log_OIII_Hb_cf', np.float64), ('log_NII_Ha_cf', np.float64), ('SII_variance', np.float64), 
-             ('OI_variance', np.float64),('OIII_variance', np.float64), ('NII_variance', np.float64),
-             ('SII_sigma', np.float64),('OI_sigma', np.float64),('OIII_sigma', np.float64),
-             ('NII_sigma', np.float64)])
+             ('log_OIII_Hb_cf', np.float64), ('log_NII_Ha_cf', np.float64), ('halpha_variance', np.float64),
+             ('hbeta_variance', np.float64), ('SII_variance', np.float64), ('OI_variance', np.float64),
+             ('OIII_variance', np.float64), ('NII_variance', np.float64), ('halpha_sigma', np.float64),
+             ('hbeta_sigma', np.float64), ('SII_sigma', np.float64), ('OI_sigma', np.float64),
+             ('OIII_sigma', np.float64), ('NII_sigma', np.float64)])
 
 centralflux_data = np.array(centralflux_data, dtype = cf_dtype)
+
+
+# In[4]:
+
 
 # save data to a FITS file
 
@@ -277,6 +299,10 @@ plt.show()
 
 print('Elapsed time is:', time.strftime("%Hh%Mm%Ss", time.gmtime(elapsedtime)))
 
+
+# In[13]:
+
+
 # Now let's check our central flux values with those calculated from Pipe3D
 
 # galaxy properties we are interested in
@@ -295,10 +321,17 @@ delta_2 = centralflux_data['log_OI_Ha_cf'] - pipe3D_log_OI_Ha_cf
 delta_3 = centralflux_data['log_OIII_Hb_cf'] - pipe3D_log_OIII_Hb_cf
 delta_4 = centralflux_data['log_NII_Ha_cf'] - pipe3D_log_NII_Ha_cf
 
-err_1 = delta_1/centralflux_data['SII_sigma'] 
-err_2 = delta_2/centralflux_data['OI_sigma'] 
-err_3 = delta_3/centralflux_data['OIII_sigma'] 
-err_4 = delta_4/centralflux_data['NII_sigma'] 
+# error propagation in line ratios
+
+SII_halpha_errprop = np.abs(centralflux_data['SII_cf']/centralflux_data['halpha_cf']) * np.sqrt((centralflux_data['SII_sigma']/centralflux_data['SII_cf'])**2 + (centralflux_data['halpha_sigma']/centralflux_data['halpha_cf'])**2)
+OI_halpha_errprop = np.abs(centralflux_data['OI_cf']/centralflux_data['halpha_cf']) * np.sqrt((centralflux_data['OI_sigma']/centralflux_data['OI_cf'])**2 + (centralflux_data['halpha_sigma']/centralflux_data['halpha_cf'])**2)
+OIII_hbeta_errprop = np.abs(centralflux_data['OIII_cf']/centralflux_data['hbeta_cf']) * np.sqrt((centralflux_data['OIII_sigma']/centralflux_data['OIII_cf'])**2 + (centralflux_data['hbeta_sigma']/centralflux_data['hbeta_cf'])**2)
+NII_halpha_errprop = np.abs(centralflux_data['NII_cf']/centralflux_data['halpha_cf']) * np.sqrt((centralflux_data['NII_sigma']/centralflux_data['NII_cf'])**2 + (centralflux_data['halpha_sigma']/centralflux_data['halpha_cf'])**2)
+
+err_1 = delta_1/np.log10(SII_halpha_errprop)
+err_2 = delta_2/np.log10(OI_halpha_errprop)
+err_3 = delta_3/np.log10(OIII_hbeta_errprop)
+err_4 = delta_4/np.log10(NII_halpha_errprop)
 
 # plot of errors
 plt.figure(figsize = (5,5))
@@ -342,3 +375,10 @@ plt.grid()
 plt.minorticks_on()
 
 plt.show()
+
+
+# In[ ]:
+
+
+
+
